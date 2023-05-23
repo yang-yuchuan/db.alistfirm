@@ -2,6 +2,8 @@
 #   引用次数ci_citation合并了上市公司本身和子公司；
 #   加入了CSMAR中的研发投入数据（原来Wind的也保留）
 
+alistdata = function(change = F) {
+
 # setup ----
 rm(list = ls())
 pacman::p_load(tidyverse, rio, lubridate, stringr, jsonlite)
@@ -687,4 +689,4 @@ save(
   file = "data/db_alistfirm.RData"
 )
 
-
+}
