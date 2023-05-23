@@ -17,4 +17,6 @@ db.alistfirm::db_alistfirm
 
 # look up for the variables information
 ?db.alistfirm::db_alistfirm
+## or directly watch the detailed Chinese version in 
+## https://github.com/yang-yuchuan/db.alistfirm/blob/master/R/data.R
 ```
