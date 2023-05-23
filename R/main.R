@@ -1,11 +1,8 @@
-# 2023-03-31：
-#   引用次数ci_citation合并了上市公司本身和子公司；
-#   加入了CSMAR中的研发投入数据（原来Wind的也保留）
-
 alistdata = function(change = F) {
 
+stop("This function need not be invoked.")
+
 # setup ----
-rm(list = ls())
 pacman::p_load(tidyverse, rio, lubridate, stringr, jsonlite)
 
 # functions ----
