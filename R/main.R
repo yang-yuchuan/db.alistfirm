@@ -32,13 +32,13 @@ csmar_clean = function(filepath,
       select(-typrep)
   }
   data <- data %>%
-    filter(
-      month(ymd(accper)) == 12
-    ) %>%
     mutate(
       year = year(ymd(accper)),
+      month = month(ymd(accper)),
+      quarter = quarter(ymd(accper)),
       stkcd = as.integer(stkcd)
-    )
+    ) %>%
+    filter(month != 1)
 
   return(data)
 }
@@ -47,9 +47,9 @@ csmar_select = function(data, ...) {
   # 删掉不要的变量
 
   data <- data %>%
-    select(stkcd, year, ...)
+    select(stkcd, year, month, quarter, ...)
   data %>%
-    summarise(across(.fn = ~ sum(is.na(.x)))) %>%
+    summarise(across(everything(), ~ sum(is.na(.x)))) %>%
     glimpse()
   return(data)
 }
@@ -190,7 +190,7 @@ cg_ownership <- csmar_clean(
     type = F, date = enddate, id = symbol
   ) %>%
   mutate(
-    year = year, stkcd = stkcd,
+    year = year, stkcd = stkcd, month = month, quarter = quarter,
     top1_share = largestholderrate,
     top10_share = toptenholdersrate,
     seperation = seperation,
@@ -237,7 +237,7 @@ cg_indabs <- csmar_clean(
     absence = as.numeric(attennum3) %>%
       replace_na(0),
   ) %>%
-  group_by(stkcd, year) %>%
+  group_by(stkcd, year, month, quarter) %>%
   summarise(
     inddir_absence = as.numeric(sum(absence) > 0)
   ) %>%
@@ -250,7 +250,7 @@ cg_indrat <- csmar_clean(
 ) %>%
   filter(statisticalcaliber == "1") %>%
   mutate(
-    year = year, stkcd = stkcd,
+    year = year, stkcd = stkcd, month = month, quarter = quarter,
     inddir_rate = as.numeric(independentdirectornumber) /
       as.numeric(directornumber),
     director_wage = as.numeric(directorsumsalary),
@@ -328,8 +328,7 @@ bi_ccer <- import(
       T ~ "非国有"
     )
   ) %>%
-  select(stkcd = 股票代码, year = 年度,
-         starts_with("soe"))
+  select(stkcd = 股票代码, year = 年度, starts_with("soe"))
 ## 看看还有没有重复值
 bi_ccer %>% count(stkcd, year) %>% filter(n > 1)
 
@@ -343,12 +342,14 @@ if (!file.exists("inst/extdata/bi_add.rds")) {
     filter(str_detect(symbol, "\\d")) %>%
     mutate(
       year = year(ymd(enddate)),
+      month = month(ymd(enddate)),
+      quarter = quarter(ymd(enddate)),
       stkcd = as.integer(symbol),
       lon = as.numeric(lng),
       lat = as.numeric(lat)
     ) %>%
     select(
-      stkcd, lon, lat, province, city,
+      stkcd, lon, lat, province, city, month, quarter,
       officeaddress, year, ind_code = industrycode
     )
 
@@ -618,31 +619,30 @@ stock_return <- import(
 # merge ----
 data_gross <- bi_base %>%
   left_join(bi_st) %>%
-  left_join(fs_balance, by = "stkcd",
-            multiple = "all") %>%
+  left_join(fs_balance, by = "stkcd", multiple = "all") %>%
   filter(year >= 2001, prov_cs != "") %>%
-  complete(
-    nesting(stkcd, year_estb, year_list, prov_cs,
-            city_cs, ind_cs, ind_class, state_cs),
-    year = 2001:2021
-  ) %>%
+  # complete(
+  #   nesting(stkcd, year_estb, year_list, prov_cs,
+  #           city_cs, ind_cs, ind_class, state_cs),
+  #   year = 2001:2021
+  # ) %>%
   left_join(stock_return, by = c("stkcd", "year")) %>%
   left_join(bi_add,       by = c("stkcd", "year")) %>%
   left_join(bi_ccer,      by = c("stkcd", "year")) %>%
-  left_join(fs_income,    by = c("stkcd", "year")) %>%
-  left_join(fs_cashflow,  by = c("stkcd", "year")) %>%
-  left_join(fi_profit,    by = c("stkcd", "year")) %>%
-  left_join(fi_ratio,     by = c("stkcd", "year")) %>%
-  left_join(fi_rvi,       by = c("stkcd", "year")) %>%
-  left_join(fi_turnover,  by = c("stkcd", "year")) %>%
+  left_join(fs_income,    by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(fs_cashflow,  by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(fi_profit,    by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(fi_ratio,     by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(fi_rvi,       by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(fi_turnover,  by = c("stkcd", "year", "quarter", "month")) %>%
   left_join(ci_citation,  by = c("stkcd", "year")) %>%
   left_join(ci_patent,    by = c("stkcd", "year")) %>%
   left_join(ci_rd,        by = c("stkcd", "year")) %>%
   left_join(ci_rd_other,  by = c("stkcd", "year")) %>%
-  left_join(cg_ownership, by = c("stkcd", "year")) %>%
-  left_join(cg_gov,       by = c("stkcd", "year")) %>%
-  left_join(cg_indabs,    by = c("stkcd", "year")) %>%
-  left_join(cg_indrat,    by = c("stkcd", "year")) %>%
+  left_join(cg_ownership, by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(cg_gov,       by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(cg_indabs,    by = c("stkcd", "year", "quarter", "month")) %>%
+  left_join(cg_indrat,    by = c("stkcd", "year", "quarter", "month")) %>%
   left_join(digit_text,   by = c("stkcd", "year"))
 rm(list = setdiff(ls(), "data_gross"))
 
@@ -650,12 +650,9 @@ rm(list = setdiff(ls(), "data_gross"))
 db_alistfirm <- data_gross %>%
   mutate(
     # 根据横截面补全行业、地址、SOE
-    across(c(prov_cs, city_cs, state_cs),
-           ~ ifelse(.x == "", NA, .x)),
-    ind_code = ifelse(is.na(ind_code),
-                       ind_cs, ind_code),
-    province = ifelse(is.na(province),
-                       prov_cs, province),
+    across(c(prov_cs, city_cs, state_cs), ~ ifelse(.x == "", NA, .x)),
+    ind_code = ifelse(is.na(ind_code), ind_cs, ind_code),
+    province = ifelse(is.na(province), prov_cs, province),
     city = ifelse(is.na(city), city_cs, city),
     state = ifelse(is.na(state), state_cs, state),
     # 所有权性质二元变量；“其他”设为NA
@@ -665,7 +662,7 @@ db_alistfirm <- data_gross %>%
       T ~ "非国有"
     ),
     soe_csmar_num = if_else(soe_csmar == "国有", 1, 0),
-    # CCER应该用截面补还是用时变补？
+    # CCER用截面补（或者可以用时变补？）
     soe_ccer = case_when(
       !is.na(soe_ccer) ~ soe_ccer,
       str_detect(state_cs, "国有|政府") ~ "国有",
@@ -677,13 +674,12 @@ db_alistfirm <- data_gross %>%
       soe_ccer == "非国有" ~ 0,
     )
   ) %>%
-  select(
-    stkcd, year, province, city, ind_code,
-    sort(names(.))
-  )
-save(
-  db_alistfirm,
-  file = "data/db_alistfirm.RData"
-)
+  select(stkcd, year, quarter, month, province, city, ind_code, sort(names(.)))
+db_alistfirm_yearly <- db_alistfirm %>%
+  filter(quarter == 4) %>%
+  select(-month, -quarter)
+# 年度和季度数据
+save(db_alistfirm, file = "data/db_alistfirm_quarterly.RData")
+save(db_alistfirm_yearly, file = "data/db_alistfirm_yearly.RData")
 
 }

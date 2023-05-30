@@ -1,16 +1,18 @@
 #' @title A-share listed firm
 #'
 #' @docType data
-#' @name db_alistfirm
+#' @name db_alistfirm_quarterly
 #'
 #' @description A dataset containing listed firm data during 2001 ~ 2021.
 #'     For detailed Chinese information, see
 #'     https://github.com/yang-yuchuan/db.alistfirm/blob/master/R/data.R
 #'
-#' @format It has 49 variables:
+#' @format It has 80 variables:
 #' \describe{
 #'   \item{stkcd}{stock code}
 #'   \item{year}{year}
+#'   \item{month}{month}
+#'   \item{quarter}{quarter = 1, 2, 3, 4}
 #'   \item{province}{office address: province}
 #'   \item{prov_cs}{cross-sectional province, from CSMAR}
 #'   \item{city}{office address: city}
