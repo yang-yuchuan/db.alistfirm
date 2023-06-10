@@ -54,6 +54,18 @@ csmar_select = function(data, ...) {
   return(data)
 }
 
+csmar_unquarter = function(data, ...) {
+  # 将季度流量数据差分，从累计数据转化为季度数据，但季度数据不全的会变为NA
+
+  data %>%
+    group_by(stkcd, year) %>%
+    # filter(n() == 4) %>%
+    mutate(across(
+      c(...),
+      ~ .x - lag(.x, n = 1, default = 0, order_by = quarter)
+    ))
+}
+
 get_add = function(lonlat) {
   # 若办公地址中包含注册城市，则采用注册城市；
   # 否则，利用办公地址经纬度和高德地图进行地理逆编码
@@ -90,21 +102,6 @@ get_add = function(lonlat) {
   ))
 }
 
-gen_spill = function(x, data) {
-  # 构造知识溢出变量
-
-  if (is.na(x)) {
-    x
-  } else {
-    data %>%
-      as_tibble() %>%
-      mutate(excess = data - x) %>%
-      filter(excess > 0) %>%
-      summarise(sum(excess)) %>%
-      as.numeric()
-  }
-}
-
 # import: Financial Statements ----
 fs_balance <- csmar_clean(
     "inst/extdata/资产负债表-2022/FS_Combas.csv"
@@ -134,7 +131,8 @@ fs_income <- csmar_clean(
     cost = b001201000,
     sale_expense = b001209000,
     admin_expense = b001210000
-  )
+  ) %>%
+  csmar_unquarter(revenue, net_profit, cost, sale_expense, admin_expense)
 
 fs_cashflow <- csmar_clean(
     "inst/extdata/现金流量表(直接法)-2022/FS_Comscfd.csv"
@@ -145,15 +143,17 @@ fs_cashflow <- csmar_clean(
     dividend_pay = c003006000,
     invest_pay = c002006000,
     invest_receive = c002003000
-  )
+  ) %>%
+  csmar_unquarter(cash, operate_cash, dividend_pay, starts_with("invest"))
 
 # import: Financial Index ----
-fi_turnover <- csmar_clean(
-    "inst/extdata/经营能力-2022/FI_T4.csv"
-  ) %>%
-  csmar_select(
-    current_asset_to = f041202b
-  )
+## 指标计算过程中涉及到利润表/现金表数据的，会被季度累计影响，需要匹配后手动计算
+# fi_turnover <- csmar_clean(
+#     "inst/extdata/经营能力-2022/FI_T4.csv"
+#   ) %>%
+#   csmar_select(
+#     current_asset_to = f041202b
+#   )
 
 fi_ratio <- csmar_clean(
     "inst/extdata/比率结构-2022/FI_T3.csv"
@@ -167,11 +167,8 @@ fi_ratio <- csmar_clean(
 fi_profit <- csmar_clean(
     "inst/extdata/盈利能力-2022/FI_T5.csv"
   ) %>%
-  csmar_select(
-    roa = f050202b,
-    roe = f050502b,
-    ebitda = f050801b
-  )
+  csmar_select(ebitda = f050801b) %>%
+  csmar_unquarter(ebitda)
 
 fi_rvi <- csmar_clean(
     "inst/extdata/相对价值指标-2022/FI_T10.csv",
@@ -224,8 +221,7 @@ cg_gov <- csmar_clean(
   ) %>%
   csmar_select(
     # 两职合一、独立董事工作地点是否相同、员工人数
-    ceo_duality, inddir_workplace, ceo_duality_num,
-    labor
+    ceo_duality, inddir_workplace, ceo_duality_num, labor
   )
 
 ## 独立董事缺席会议情况
@@ -634,7 +630,7 @@ data_gross <- bi_base %>%
   left_join(fi_profit,    by = c("stkcd", "year", "quarter", "month")) %>%
   left_join(fi_ratio,     by = c("stkcd", "year", "quarter", "month")) %>%
   left_join(fi_rvi,       by = c("stkcd", "year", "quarter", "month")) %>%
-  left_join(fi_turnover,  by = c("stkcd", "year", "quarter", "month")) %>%
+  # left_join(fi_turnover,  by = c("stkcd", "year", "quarter", "month")) %>%
   left_join(ci_citation,  by = c("stkcd", "year")) %>%
   left_join(ci_patent,    by = c("stkcd", "year")) %>%
   left_join(ci_rd,        by = c("stkcd", "year")) %>%
@@ -647,7 +643,7 @@ data_gross <- bi_base %>%
 rm(list = setdiff(ls(), "data_gross"))
 
 # process ----
-db_alistfirm <- data_gross %>%
+db_alistfirm_quarterly <- data_gross %>%
   mutate(
     # 根据横截面补全行业、地址、SOE
     across(c(prov_cs, city_cs, state_cs), ~ ifelse(.x == "", NA, .x)),
@@ -672,14 +668,18 @@ db_alistfirm <- data_gross %>%
     soe_ccer_num = case_when(
       soe_ccer == "国有" ~ 1,
       soe_ccer == "非国有" ~ 0,
-    )
+    ),
+    # 涉及到流量数据的相对指标需要重新手动计算，避免季度问题
+    roa = net_profit / total_asset,
+    roe = net_profit / book_equity,
+    across(everything(), ~ ifelse(is.infinite(.x), NA, .x))
   ) %>%
   select(stkcd, year, quarter, month, province, city, ind_code, sort(names(.)))
 db_alistfirm_yearly <- db_alistfirm %>%
   filter(quarter == 4) %>%
   select(-month, -quarter)
 # 年度和季度数据
-save(db_alistfirm, file = "data/db_alistfirm_quarterly.RData")
+save(db_alistfirm_quarterly, file = "data/db_alistfirm_quarterly.RData")
 save(db_alistfirm_yearly, file = "data/db_alistfirm_yearly.RData")
 
 }

@@ -7,7 +7,7 @@
 #'     For detailed Chinese information, see
 #'     https://github.com/yang-yuchuan/db.alistfirm/blob/master/R/data.R
 #'
-#' @format It has 80 variables:
+#' @format It has 79 variables:
 #' \describe{
 #'   \item{stkcd}{stock code}
 #'   \item{year}{year}
@@ -31,7 +31,6 @@
 #'   \item{citation}{total number of patent citations}
 #'   \item{construction}{net amount of construction in process}
 #'   \item{current_asset}{current assets}
-#'   \item{current_asset_to}{current assets turnover}
 #'   \item{current_debt}{current liabilities}
 #'   \item{digit_a}{digitalization based on text analysis, see 10.19744/j.cnki.11-1235/f.2021.0097}
 #'   \item{digit_b}{digitalization based on text analysis, see 10.19795/j.cnki.cn11-1166/f.20210705.001}
@@ -115,7 +114,6 @@ NULL
 # citation               - 总专利被引用次数
 # construction           - 在建工程净额
 # current_asset          - 流动资产
-# current_asset_to       - 流动资产周转率
 # current_debt           - 流动负债
 # digit_a                - 企业数字化文本指标，基于吴非等（2021）
 # digit_b                - 企业数字化文本指标，基于赵宸宇（2021）

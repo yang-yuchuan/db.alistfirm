@@ -5,7 +5,7 @@
 \alias{db_alistfirm_quarterly}
 \title{A-share listed firm}
 \format{
-It has 80 variables:
+It has 79 variables:
 \describe{
   \item{stkcd}{stock code}
   \item{year}{year}
@@ -29,7 +29,6 @@ It has 80 variables:
   \item{citation}{total number of patent citations}
   \item{construction}{net amount of construction in process}
   \item{current_asset}{current assets}
-  \item{current_asset_to}{current assets turnover}
   \item{current_debt}{current liabilities}
   \item{digit_a}{digitalization based on text analysis, see 10.19744/j.cnki.11-1235/f.2021.0097}
   \item{digit_b}{digitalization based on text analysis, see 10.19795/j.cnki.cn11-1166/f.20210705.001}
