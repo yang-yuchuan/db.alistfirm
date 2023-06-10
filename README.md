@@ -24,3 +24,4 @@ db.alistfirm::db_alistfirm
 ### Updates
 
 - 2023-05-30: Refined to quarterly data, remove completion when merging (now merge only if balance sheet information is valid).
+- 2023-06-10: Do seasonal difference for flow variables, e.g., cash, invest payment, etc. Now that these variables reflect the flow in the corresponding quarter, but not the sum of the previous quarters in that year.
