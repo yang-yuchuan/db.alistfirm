@@ -62,8 +62,11 @@ csmar_unquarter = function(data, ...) {
     # filter(n() == 4) %>%
     mutate(across(
       c(...),
-      ~ .x - lag(.x, n = 1, default = 0, order_by = quarter)
-    ))
+      ~ rowSums(
+        cbind(.x, lag(.x, default = 0, order_by = quarter)), na.rm = T
+      )
+    )) %>%
+    ungroup()
 }
 
 get_add = function(lonlat) {
@@ -181,6 +184,7 @@ fi_rvi <- csmar_clean(
   )
 
 # import: Corporate Governance ----
+### 这些均为年度数据，删除quarter和month变量，依照年来匹配，对每个季度赋值
 ## 股权性质
 cg_ownership <- csmar_clean(
     "inst/extdata/中国上市公司股权性质文件-2022/EN_EquityNatureAll.xlsx",
@@ -201,7 +205,8 @@ cg_ownership <- csmar_clean(
     checkandbalance_equity =
       (top10_share - top1_share) / top1_share,
     .keep = "none"
-  )
+  ) %>%
+  select(-c(month, quarter))
 
 ## 治理结构
 cg_gov <- csmar_clean(
@@ -221,7 +226,7 @@ cg_gov <- csmar_clean(
   ) %>%
   csmar_select(
     # 两职合一、独立董事工作地点是否相同、员工人数
-    ceo_duality, inddir_workplace, ceo_duality_num, labor
+    ceo_duality, inddir_workplace, ceo_duality_num, labor, -c(month, quarter)
   )
 
 ## 独立董事缺席会议情况
@@ -237,7 +242,8 @@ cg_indabs <- csmar_clean(
   summarise(
     inddir_absence = as.numeric(sum(absence) > 0)
   ) %>%
-  ungroup()
+  ungroup() %>%
+  select(-c(month, quarter))
 
 ## 独立董事比例
 cg_indrat <- csmar_clean(
@@ -246,7 +252,7 @@ cg_indrat <- csmar_clean(
 ) %>%
   filter(statisticalcaliber == "1") %>%
   mutate(
-    year = year, stkcd = stkcd, month = month, quarter = quarter,
+    year = year, stkcd = stkcd,
     inddir_rate = as.numeric(independentdirectornumber) /
       as.numeric(directornumber),
     director_wage = as.numeric(directorsumsalary),
@@ -635,11 +641,12 @@ data_gross <- bi_base %>%
   left_join(ci_patent,    by = c("stkcd", "year")) %>%
   left_join(ci_rd,        by = c("stkcd", "year")) %>%
   left_join(ci_rd_other,  by = c("stkcd", "year")) %>%
-  left_join(cg_ownership, by = c("stkcd", "year", "quarter", "month")) %>%
-  left_join(cg_gov,       by = c("stkcd", "year", "quarter", "month")) %>%
-  left_join(cg_indabs,    by = c("stkcd", "year", "quarter", "month")) %>%
-  left_join(cg_indrat,    by = c("stkcd", "year", "quarter", "month")) %>%
-  left_join(digit_text,   by = c("stkcd", "year"))
+  left_join(cg_ownership, by = c("stkcd", "year")) %>%
+  left_join(cg_gov,       by = c("stkcd", "year")) %>%
+  left_join(cg_indabs,    by = c("stkcd", "year")) %>%
+  left_join(cg_indrat,    by = c("stkcd", "year")) %>%
+  left_join(digit_text,   by = c("stkcd", "year")) %>%
+  arrange(stkcd, year, quarter)
 rm(list = setdiff(ls(), "data_gross"))
 
 # process ----
@@ -675,7 +682,7 @@ db_alistfirm_quarterly <- data_gross %>%
     across(everything(), ~ ifelse(is.infinite(.x), NA, .x))
   ) %>%
   select(stkcd, year, quarter, month, province, city, ind_code, sort(names(.)))
-db_alistfirm_yearly <- db_alistfirm %>%
+db_alistfirm_yearly <- db_alistfirm_quarterly %>%
   filter(quarter == 4) %>%
   select(-month, -quarter)
 # 年度和季度数据
