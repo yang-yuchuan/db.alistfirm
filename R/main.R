@@ -2,6 +2,12 @@ alistdata = function(change = F) {
 
 stop("This function need not be invoked.")
 
+# 自动化
+library(magrittr)
+path <- "/Users/yangyuchuan/Downloads/smar"
+dirs <- list.dirs(path, full.names = F)[-1]
+result <- list()
+
 # setup ----
 pacman::p_load(tidyverse, rio, lubridate, stringr, jsonlite)
 
@@ -289,7 +295,8 @@ bi_base <- import(
     stkcd, year_estb, year_list,
     # 横截面信息
     ind_cs = nnindcd, ind_class = indcd,
-    prov_cs, city_cs, state_cs = ownershiptype
+    prov_cs, city_cs, state_cs = ownershiptype,
+    market_type = markettype
   )
 
 bi_st <- import(
